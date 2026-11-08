@@ -1,0 +1,17 @@
+## Interface: 16001
+## Title: Chat of Azeroth
+## Notes: A chat window like Discord or mIRC: channels on the left, whispers as conversations, your own filtered tabs.
+## Notes-nlNL: Een chatvenster zoals Discord of mIRC: kanalen links, fluistergesprekken apart, je eigen gefilterde tabs.
+## Author: DinX
+## Version: 0.1.0
+## IconTexture: Interface\Icons\INV_Letter_17
+## SavedVariables: ChatOfAzerothDB
+## SavedVariablesPerCharacter: ChatOfAzerothCharDB
+## OptionalDeps: CastersOfAzeroth
+
+Core.lua
+Locale.lua
+Style.lua
+Store.lua
+Window.lua
+Config.lua

@@ -60,17 +60,27 @@ function St.Format(m)
 	if m.secret then return nil end
 	local parts = {}
 	if ChA.char.timestamps then parts[#parts + 1] = "|cff7f8790" .. date("%H:%M", m.t) .. "|r " end
-	if m.channelNum and m.room ~= "ch:" .. (m.channel or "") then parts[#parts + 1] = "[" .. m.channelNum .. "] " end
+	-- the channel number only for channel messages shown outside their own room
+	if m.event == "CHANNEL" and m.channelNum and m.channelNum > 0 and m.room ~= "ch:" .. (m.channel or "") then
+		parts[#parts + 1] = "[" .. m.channelNum .. "] "
+	end
 	local name = m.author
 	if type(name) == "string" and name ~= "" then
 		local short = shortName(name)
 		local hex = m.color or "ffffff"
 		local shown = "|cff" .. hex .. short .. "|r"
 		if m.event == "WHISPER_INFORM" or m.event == "BN_WHISPER_INFORM" then shown = "-> " .. shown end
-		if m.event:find("EMOTE") then
-			parts[#parts + 1] = "|Hplayer:" .. name .. "|h" .. shown .. "|h " .. (m.text or "")
+		-- NPCs get no player link (no right-click menu for them)
+		local npc = m.event:find("^MONSTER") ~= nil
+		local who = npc and shown or ("|Hplayer:" .. name .. "|h" .. shown .. "|h")
+		local text = m.text or ""
+		if text:find("%s", 1, true) then
+			-- emotes like "%s attempts to run away in fear!": the name goes in its place
+			parts[#parts + 1] = (text:gsub("%%s", function() return who end, 1))
+		elseif m.event:find("EMOTE") then
+			parts[#parts + 1] = who .. " " .. text
 		else
-			parts[#parts + 1] = "|Hplayer:" .. name .. "|h" .. shown .. "|h: " .. (m.text or "")
+			parts[#parts + 1] = who .. ": " .. text
 		end
 	else
 		parts[#parts + 1] = m.text or ""

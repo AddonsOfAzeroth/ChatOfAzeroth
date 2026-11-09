@@ -109,6 +109,17 @@ end
 St.RoomOf = roomOf
 
 function St:Add(event, text, author, channelString, guid, channelNum, channelBase)
+	-- channel notices arrive as a code ("YOU_JOINED"): Blizzard's own text for it.
+	-- "YOU_CHANGED" (a zone channel switching with you) is left out: just noise.
+	if event == "CHANNEL_NOTICE" and not IsSecret(text) and type(text) == "string" then
+		if text == "YOU_CHANGED" or text == "SUSPENDED" then return end
+		local fmt = _G["CHAT_" .. text .. "_NOTICE"] or _G["CHAT_" .. text .. "_NOTICE_BN"]
+		if type(fmt) == "string" then
+			local ok, out = pcall(string.format, fmt, Safe(channelNum, 0) or 0, Safe(channelString, "") or "")
+			text = ok and out or text
+		end
+		author = ""
+	end
 	-- other players' crafting ("X creates Y") only when you want it
 	if event == "TRADESKILLS" and not ChA.char.othersCrafting and not IsSecret(author) and not IsSecret(text) then
 		local me = UnitName("player")

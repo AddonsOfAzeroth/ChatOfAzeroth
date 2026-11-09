@@ -23,6 +23,8 @@ for k, v in pairs({
 	["System"] = "Systeem",
 	["Loot"] = "Loot",
 	["Say and emotes"] = "Say en emotes",
+	["Combat log"] = "Combat log",
+	["Blizzard's own combat log"] = "Blizzards eigen combat log",
 	["Guild"] = "Guild",
 	["Party"] = "Groep",
 	["Raid"] = "Raid",

@@ -21,6 +21,7 @@ local FIXED = {
 	{ key = "system", label = "System" },
 	{ key = "loot", label = "Loot" },
 	{ key = "local", label = "Say and emotes" },
+	{ key = "combatlog", label = "Combat log", need = function() return (_G.COMBATLOG or _G.ChatFrame2) ~= nil end },
 	{ key = "guild", label = "Guild", need = function() return IsInGuild and IsInGuild() end },
 	{ key = "party", label = "Party", need = function() return IsInGroup() end },
 	{ key = "raid", label = "Raid", need = function() return IsInRaid() end },
@@ -67,7 +68,7 @@ end
 ---------------------------------------------------------------------------
 -- Blizzard's chat windows out of sight (their input box moves into ours)
 ---------------------------------------------------------------------------
-local BLIZZARD_BITS = { "GeneralDockManager", "ChatFrameMenuButton", "ChatFrameChannelButton",
+local BLIZZARD_BITS = { "GeneralDockManager", "CombatLogQuickButtonFrame_Custom", "ChatFrameMenuButton", "ChatFrameChannelButton",
 	"ChatFrameToggleVoiceDeafenButton", "ChatFrameToggleVoiceMuteButton", "QuickJoinToastButton" }
 
 function W:HideBlizzard()
@@ -332,11 +333,45 @@ local function show(m)
 	end
 end
 
+-- Combat log: addons can't read it here, so Blizzard's own combat log window
+-- is shown in our message area while you are in that room
+local function combatLogFrame() return _G.COMBATLOG or _G.ChatFrame2 end
+
+function W:ShowCombatLog(on)
+	local cl = combatLogFrame()
+	local qb = _G.CombatLogQuickButtonFrame_Custom
+	if not cl then return end
+	if on then
+		cl:ClearAllPoints()
+		cl:SetPoint("TOPLEFT", self.messages, "TOPLEFT", 0, qb and -22 or 0)
+		cl:SetPoint("BOTTOMRIGHT", self.messages, "BOTTOMRIGHT", 0, 0)
+		cl:SetAlpha(1)
+		cl:EnableMouse(true)
+		if cl.EnableMouseWheel then cl:EnableMouseWheel(true) end
+		if not cl:IsShown() then cl:Show() end
+		if qb then qb:SetAlpha(1) qb:EnableMouse(true) end
+		self.messages:Hide()
+	else
+		if cfg().hideBlizzard then
+			cl:SetAlpha(0)
+			cl:EnableMouse(false)
+			if cl.EnableMouseWheel then cl:EnableMouseWheel(false) end
+			if qb then qb:SetAlpha(0) qb:EnableMouse(false) end
+		end
+		self.messages:Show()
+	end
+end
+
 function W:Select(key)
 	local c = cfg()
 	c.current = key or "all"
 	St:Read(c.current)
 	self.title:SetText(roomLabel(c.current))
+	self:ShowCombatLog(c.current == "combatlog")
+	if c.current == "combatlog" then
+		self.topic:SetText(L["Blizzard's own combat log"])
+		return self:RenderSidebar()
+	end
 	local kind, target = targetFor(c.current)
 	self.topic:SetText(kind and L["typing goes here"] or "")
 	self.messages:Clear()
@@ -542,7 +577,11 @@ function W:OnEnable()
 	ChA:Listen("MESSAGE", function(m) local ok = pcall(W.OnMessage, W, m) end)
 	ChA:Listen("SETTINGS", function(group) if group == "chat" then pcall(W.Apply, W) end end)
 	ChA:On("PLAYER_ENTERING_WORLD", function() C_Timer.After(1, function() pcall(W.Apply, W) end) end)
-	ChA:On("UPDATE_CHAT_WINDOWS", function() C_Timer.After(0.5, function() if cfg().enabled then pcall(W.HideBlizzard, W) end end) end)
+	ChA:On("UPDATE_CHAT_WINDOWS", function() C_Timer.After(0.5, function()
+		if not cfg().enabled then return end
+		pcall(W.HideBlizzard, W)
+		if cfg().current == "combatlog" then pcall(W.ShowCombatLog, W, true) end
+	end) end)
 	ChA:On("GROUP_ROSTER_UPDATE", function() pcall(W.RenderSidebar, W) end)
 	ChA:On("CHANNEL_UI_UPDATE", function() pcall(W.RenderSidebar, W) end)
 	pcall(W.Apply, W)

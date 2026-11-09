@@ -54,6 +54,8 @@ for k, v in pairs({
 	["Hide Blizzard's chat windows"] = "Blizzards chatvensters verbergen",
 	["Their input box moves into our window."] = "Hun invoerbalk verhuist naar ons venster.",
 	["Time in front of every line"] = "Tijd voor elke regel",
+	["Show what other players craft"] = "Tonen wat andere spelers craften",
+	["Off: only your own crafting shows."] = "Uit: alleen je eigen crafting verschijnt.",
 	["Text size"] = "Tekstgrootte",
 	["Language"] = "Taal",
 	["Automatic"] = "Automatisch",

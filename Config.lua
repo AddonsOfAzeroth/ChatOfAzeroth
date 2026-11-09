@@ -18,6 +18,7 @@ function C.Build(p)
 	p:Check(L["Our chat window on"], nil, opt("enabled"))
 	p:Check(L["Hide Blizzard's chat windows"], L["Their input box moves into our window."], opt("hideBlizzard"))
 	p:Check(L["Time in front of every line"], nil, opt("timestamps"))
+	p:Check(L["Show what other players craft"], L["Off: only your own crafting shows."], opt("othersCrafting"))
 	p:Choice(L["Text size"], { { 11, "11" }, { 12, "12" }, { 13, "13" }, { 14, "14" }, { 16, "16" } }, opt("fontSize"))
 	p:Gap()
 	p:Choice(L["Language"], { { "auto", L["Automatic"] }, { "enUS", "English" }, { "nlNL", "Nederlands" } },

@@ -21,6 +21,7 @@ local charDefaults = {
 	enabled = true,
 	hideBlizzard = true, -- Blizzard's chat windows out of sight while ours is on
 	timestamps = true,
+	othersCrafting = false, -- "X creates Y" from players around you
 	fontSize = 13,
 	width = 560,
 	height = 230,

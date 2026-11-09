@@ -349,6 +349,11 @@ function W:ShowCombatLog(on)
 		cl:SetAlpha(1)
 		-- same text as the rest of our chat (not saved in Blizzard's chat settings)
 		pcall(cl.SetFont, cl, S.font, cfg().fontSize, S.flags)
+		-- crafting messages belong in the chat, not the combat log
+		if ChatFrame_RemoveMessageGroup and not self.craftOut then
+			self.craftOut = true
+			pcall(ChatFrame_RemoveMessageGroup, cl, "TRADESKILLS")
+		end
 		cl:EnableMouse(true)
 		if cl.EnableMouseWheel then cl:EnableMouseWheel(true) end
 		if not cl:IsShown() then cl:Show() end

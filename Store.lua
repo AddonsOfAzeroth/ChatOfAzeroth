@@ -99,6 +99,15 @@ end
 St.RoomOf = roomOf
 
 function St:Add(event, text, author, channelString, guid, channelNum, channelBase)
+	-- other players' crafting ("X creates Y") only when you want it
+	if event == "TRADESKILLS" and not ChA.char.othersCrafting and not IsSecret(author) and not IsSecret(text) then
+		local me = UnitName("player")
+		if type(author) == "string" and author ~= "" then
+			if shortName(author) ~= me then return end
+		elseif type(text) == "string" and not text:find("^You ") and not (me and text:find(me, 1, true)) then
+			return -- the crafter's name is only in the text
+		end
+	end
 	local secret = IsSecret(text) or IsSecret(author) or IsSecret(channelBase)
 	local base = not IsSecret(channelBase) and channelBase or nil
 	if (not base or base == "") and type(channelString) == "string" and not IsSecret(channelString) then

@@ -346,6 +346,8 @@ function W:ShowCombatLog(on)
 		cl:SetPoint("TOPLEFT", self.messages, "TOPLEFT", 0, qb and -22 or 0)
 		cl:SetPoint("BOTTOMRIGHT", self.messages, "BOTTOMRIGHT", 0, 0)
 		cl:SetAlpha(1)
+		-- same text as the rest of our chat (not saved in Blizzard's chat settings)
+		pcall(cl.SetFont, cl, S.font, cfg().fontSize, S.flags)
 		cl:EnableMouse(true)
 		if cl.EnableMouseWheel then cl:EnableMouseWheel(true) end
 		if not cl:IsShown() then cl:Show() end

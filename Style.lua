@@ -148,6 +148,14 @@ local function pinTopLeft(frame)
 	frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", left, top)
 end
 
+-- for frames at the bottom of the screen: they grow upward
+local function pinBottomLeft(frame)
+	local left, bottom = frame:GetLeft(), frame:GetBottom()
+	if not (left and bottom) then return end
+	frame:ClearAllPoints()
+	frame:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", left, bottom)
+end
+
 local function savePoint(frame, key)
 	local left, top = frame:GetLeft(), frame:GetTop()
 	if left and top then
@@ -172,17 +180,20 @@ end
 local function clamp(v, lo, hi) return math.floor(math.max(lo, math.min(hi, v)) + 0.5) end
 
 -- opts: from S:Sizing, plus parent (the grip's parent) and save(frame)
+-- opts.up: the grip sits top-right and the frame grows upward (bottom edge stays)
 function S:AddSizeGrip(frame, opts)
+	local up = opts.up
+	local pin = up and pinBottomLeft or pinTopLeft
 	local save = opts.save or function(f) if opts.key then savePoint(f, opts.key) end end
 	local grip = CreateFrame("Button", nil, opts.parent or frame)
 	grip:SetSize(14, 14)
-	grip:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -1, 1)
+	grip:SetPoint(up and "TOPRIGHT" or "BOTTOMRIGHT", frame, up and "TOPRIGHT" or "BOTTOMRIGHT", -1, up and -1 or 1)
 	grip:SetFrameLevel((opts.parent or frame):GetFrameLevel() + 20)
 	for i = 0, 2 do
 		local t = grip:CreateTexture(nil, "OVERLAY")
 		t:SetColorTexture(self.colors.muted[1], self.colors.muted[2], self.colors.muted[3], 0.9)
 		t:SetSize(2 + i * 4, 1)
-		t:SetPoint("BOTTOMRIGHT", -1, 2 + i * 3)
+		if up then t:SetPoint("TOPRIGHT", -1, -2 - i * 3) else t:SetPoint("BOTTOMRIGHT", -1, 2 + i * 3) end
 	end
 	local function blocked() return InCombatLockdown() and frame:IsProtected() end
 	local function done()
@@ -197,7 +208,7 @@ function S:AddSizeGrip(frame, opts)
 	grip:SetScript("OnLeave", function() GameTooltip:Hide() end)
 	grip:SetScript("OnMouseDown", function(g)
 		if blocked() then return end
-		pinTopLeft(frame)
+		pin(frame)
 		local x0, y0 = GetCursorPosition()
 		local es = frame:GetEffectiveScale()
 		local w0, h0 = opts.get()
@@ -206,7 +217,8 @@ function S:AddSizeGrip(frame, opts)
 			if blocked() then return end
 			local x, y = GetCursorPosition()
 			local w = clamp(w0 + (x - x0) / es, opts.min[1], opts.max[1])
-			local h = opts.axis == "x" and h0 or clamp(h0 + (y0 - y) / es, opts.min[2], opts.max[2])
+			local dy = up and (y - y0) or (y0 - y)
+			local h = opts.axis == "x" and h0 or clamp(h0 + dy / es, opts.min[2], opts.max[2])
 			if w ~= lw or h ~= lh then
 				lw, lh = w, h
 				opts.set(w, h)
@@ -220,7 +232,7 @@ function S:AddSizeGrip(frame, opts)
 	end)
 	grip:SetScript("OnDoubleClick", function()
 		if blocked() or not opts.reset then return end
-		pinTopLeft(frame)
+		pin(frame)
 		opts.reset()
 		done()
 	end)
@@ -259,7 +271,15 @@ function S:RegisterMover(frame, key, label, defaultFn, anchorTop, sizing)
 	self.movers[key] = { frame = frame, overlay = o, defaultFn = defaultFn }
 	if sizing then
 		sizing.parent = o
-		sizing.save = function(f) if anchorTop then S:AnchorTop(f, key) else savePoint(f, key) end end
+		sizing.save = function(f)
+			if anchorTop then return S:AnchorTop(f, key) end
+			if sizing.up then -- keep the bottom edge where it is
+				local l, b = f:GetLeft(), f:GetBottom()
+				if l and b then ChA.char.points[key] = { "BOTTOMLEFT", "UIParent", "BOTTOMLEFT", math.floor(l + 0.5), math.floor(b + 0.5) } end
+				return
+			end
+			savePoint(f, key)
+		end
 		self:AddSizeGrip(frame, sizing)
 	end
 	self:ApplyPoint(frame, key)

@@ -32,6 +32,7 @@ for k, v in pairs({
 	["Chat"] = "Chat",
 	["Your tabs"] = "Jouw tabs",
 	["+ New tab"] = "+ Nieuwe tab",
+	["Settings"] = "Instellingen",
 	["+ Join channel"] = "+ Kanaal joinen",
 	["Which channel do you want to join?"] = "Welk kanaal wil je joinen?",
 	["Or only these channels:"] = "Of alleen deze kanalen:",

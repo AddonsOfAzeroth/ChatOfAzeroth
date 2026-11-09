@@ -189,13 +189,29 @@ function W:Build()
 	inp:SetPoint("BOTTOMRIGHT", -1, 1)
 	inp:SetHeight(INPUT)
 
-	S:RegisterMover(f, "chat", L["Chat"], function(fr)
-		fr:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", 8, 8)
-	end, nil, S:Sizing(f, "chat", { min = { 360, 140 }, max = { 1600, 900 }, apply = function(w, h)
+	-- settings, always one click away
+	local gear = CreateFrame("Button", nil, f)
+	gear:SetHeight(18)
+	gear:SetPoint("TOPRIGHT", -20, -3)
+	gear.text = S:Font(gear, 10)
+	gear.text:SetPoint("RIGHT")
+	gear.text:SetText(L["Settings"])
+	gear.text:SetTextColor(unpack(S.colors.muted))
+	gear:SetWidth(gear.text:GetStringWidth() + 6)
+	gear:SetScript("OnClick", function() ChA:ToggleConfig() end)
+	gear:SetScript("OnEnter", function(b) b.text:SetTextColor(unpack(S.colors.accent)) end)
+	gear:SetScript("OnLeave", function(b) b.text:SetTextColor(unpack(S.colors.muted)) end)
+
+	-- the chat sits at the bottom of the screen: its grip is top-right and it grows upward
+	local sizing = S:Sizing(f, "chat", { min = { 360, 140 }, max = { 1600, 900 }, apply = function(w, h)
 		c.width, c.height = w or 560, h or 230
 		f:SetSize(c.width, c.height)
 		W:RenderSidebar()
-	end }))
+	end })
+	sizing.up = true
+	S:RegisterMover(f, "chat", L["Chat"], function(fr)
+		fr:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", 8, 8)
+	end, nil, sizing)
 end
 
 -- one sidebar entry

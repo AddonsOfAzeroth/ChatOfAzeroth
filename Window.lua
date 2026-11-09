@@ -336,6 +336,7 @@ end
 -- Combat log: addons can't read it here, so Blizzard's own combat log window
 -- is shown in our message area while you are in that room
 local function combatLogFrame() return _G.COMBATLOG or _G.ChatFrame2 end
+local qbParent -- where Blizzard keeps the filter bar, to give it back
 
 function W:ShowCombatLog(on)
 	local cl = combatLogFrame()
@@ -351,7 +352,18 @@ function W:ShowCombatLog(on)
 		cl:EnableMouse(true)
 		if cl.EnableMouseWheel then cl:EnableMouseWheel(true) end
 		if not cl:IsShown() then cl:Show() end
-		if qb then qb:SetAlpha(1) qb:EnableMouse(true) end
+		-- the filter bar (Me / What did I do / ...): Blizzard only shows it when its
+		-- own combat log tab is picked, so we show it above the log ourselves
+		if qb then
+			qbParent = qbParent or qb:GetParent()
+			qb:SetParent(self.frame)
+			qb:ClearAllPoints()
+			qb:SetPoint("BOTTOMLEFT", cl, "TOPLEFT", 0, 2)
+			qb:SetPoint("BOTTOMRIGHT", cl, "TOPRIGHT", 0, 2)
+			qb:SetAlpha(1)
+			qb:EnableMouse(true)
+			qb:Show()
+		end
 		self.messages:Hide()
 	else
 		if cfg().hideBlizzard then
@@ -360,6 +372,7 @@ function W:ShowCombatLog(on)
 			if cl.EnableMouseWheel then cl:EnableMouseWheel(false) end
 			if qb then qb:SetAlpha(0) qb:EnableMouse(false) end
 		end
+		if qb and qbParent and qb:GetParent() == self.frame then qb:SetParent(qbParent) end
 		self.messages:Show()
 	end
 end

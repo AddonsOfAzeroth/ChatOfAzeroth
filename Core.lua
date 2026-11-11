@@ -27,6 +27,9 @@ local charDefaults = {
 	height = 230,
 	sidebar = 130,
 	current = "all",
+	muted = {},        -- [room] = true: no unread count, greyed at the bottom
+	notInAll = {},     -- [channel] = true: kept out of "All"
+	collapsed = {},    -- [group] = true: folded in the sidebar
 	bars = { locked = true },
 	points = {},
 }

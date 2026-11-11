@@ -15,4 +15,5 @@ Locale.lua
 Style.lua
 Store.lua
 Window.lua
+Menus.lua
 Config.lua

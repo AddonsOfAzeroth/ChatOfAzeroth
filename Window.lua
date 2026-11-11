@@ -47,6 +47,15 @@ local function targetFor(key)
 	if key == "raid" then return "RAID" end
 	if key == "instance" then return "INSTANCE_CHAT" end
 	local ch = key:match("^ch:(.+)$")
+	if ch and GetChannelList then
+		-- the number of the channel you are in now with this name (any zone)
+		local list = { GetChannelList() }
+		for i = 1, #list, 3 do
+			if type(list[i + 1]) == "string" and St.BaseName(list[i + 1]) == ch and tonumber(list[i]) then
+				return "CHANNEL", tonumber(list[i])
+			end
+		end
+	end
 	if ch and GetChannelName then
 		local id = GetChannelName(ch)
 		if id and id > 0 then return "CHANNEL", id end
@@ -62,8 +71,11 @@ local function aimInput(key)
 	eb:SetAttribute("chatType", kind)
 	if kind == "CHANNEL" then eb:SetAttribute("channelTarget", target) end
 	if kind == "WHISPER" then eb:SetAttribute("tellTarget", target) end
+	W.aiming = true
 	if ChatEdit_UpdateHeader then pcall(ChatEdit_UpdateHeader, eb) end
+	W.aiming = false
 end
+W.EditBox, W.TargetFor = editBox, targetFor
 
 ---------------------------------------------------------------------------
 -- Blizzard's chat windows out of sight (their input box moves into ours)
@@ -168,8 +180,12 @@ function W:Build()
 		if IsShiftKeyDown() then
 			if d > 0 then self:ScrollToTop() else self:ScrollToBottom() end
 		elseif d > 0 then self:ScrollUp() else self:ScrollDown() end
+		local ok, bottom = pcall(self.AtBottom, self)
+		if ok and bottom and W.NewLines then W:NewLines(0) end
 	end)
 	smf:SetScript("OnHyperlinkClick", function(self, link, text, button)
+		local url = link:match("^url:(.+)$")
+		if url then return W:CopyBox(url, L["Web address: Ctrl+C to copy, Esc to close"]) end
 		if SetItemRef then SetItemRef(link, text, button, DEFAULT_CHAT_FRAME) end
 	end)
 	smf:SetScript("OnHyperlinkEnter", function(self, link)
@@ -236,10 +252,17 @@ local function button(i)
 	b.count:SetPoint("RIGHT", -6, 0)
 	b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
 	b:SetScript("OnClick", function(self, btn)
-		if self.header then return end
+		if self.header then
+			if self.group then
+				cfg().collapsed[self.group] = not cfg().collapsed[self.group] or nil
+				W:RenderSidebar()
+			end
+			return
+		end
 		if self.key == "newtab" then return W:OpenTabEditor() end
 		if self.key == "join" then return W:JoinChannel() end
-		if btn == "RightButton" and self.key and self.key:match("^tab:") then return W:TabMenu(self.key) end
+		if self.key == "morewhispers" then W.allWhispers = not W.allWhispers return W:RenderSidebar() end
+		if btn == "RightButton" and self.key then return W:RoomMenu(self.key) end
 		W:Select(self.key)
 	end)
 	b:SetScript("OnEnter", function(self) if not self.header then self.text:SetTextColor(1, 1, 1) end end)
@@ -248,39 +271,60 @@ local function button(i)
 	return b
 end
 
--- the entries: { key, label, header = true for section titles }
-function W:Entries()
-	local out = {}
-	local function add(key, label, header) out[#out + 1] = { key = key, label = label, header = header } end
-	add(nil, L["Chat"], true)
-	for _, r in ipairs(FIXED) do
-		if not r.need or r.need() or (St.rooms[r.key] and #St.rooms[r.key] > 0) then add(r.key, L[r.label]) end
-	end
-	-- channels you are in (and ones with messages)
+-- the channels you are in now, by name (zone channels once)
+local function joined()
 	local chans, seen = {}, {}
 	if GetChannelList then
 		local list = { GetChannelList() }
 		for i = 1, #list, 3 do
-			local name = list[i + 1]
+			local name = St.BaseName(list[i + 1])
 			if type(name) == "string" and not seen[name] then seen[name] = true chans[#chans + 1] = name end
 		end
 	end
-	for key in pairs(St.rooms) do
-		local ch = key:match("^ch:(.+)$")
-		if ch and not seen[ch] then seen[ch] = true chans[#chans + 1] = ch end
+	return chans
+end
+W.Joined = joined
+
+-- the entries: { key, label, header = true for section titles (group = foldable) }
+function W:Entries()
+	local out = {}
+	local fold = cfg().collapsed
+	local group
+	local function add(key, label, header, muted)
+		if header then
+			group = key
+			out[#out + 1] = { label = label, header = true, group = key, items = 0, unread = 0 }
+		else
+			local h = group and out[#out]
+			for i = #out, 1, -1 do if out[i].header then h = out[i] break end end
+			if h and h.group then
+				h.items = h.items + 1
+				h.unread = h.unread + (key and not cfg().muted[key] and St.unread[key] or 0)
+			end
+			if not (group and fold[group]) then out[#out + 1] = { key = key, label = label, muted = muted } end
+		end
 	end
-	add(nil, L["Channels"], true)
-	for _, ch in ipairs(chans) do add("ch:" .. ch, "# " .. ch) end
+	add(nil, L["Chat"], true)
+	for _, r in ipairs(FIXED) do
+		if not r.need or r.need() or (St.rooms[r.key] and #St.rooms[r.key] > 0) then add(r.key, L[r.label]) end
+	end
+	-- channels you are in; muted ones last
+	add("channels", L["Channels"], true)
+	local chans = joined()
+	for _, ch in ipairs(chans) do if not cfg().muted["ch:" .. ch] then add("ch:" .. ch, "# " .. ch) end end
+	for _, ch in ipairs(chans) do if cfg().muted["ch:" .. ch] then add("ch:" .. ch, "# " .. ch, nil, true) end end
 	add("join", L["+ Join channel"])
 	-- whispers, the most recent first
 	local dms = {}
 	for key in pairs(St.rooms) do if key:match("^dm:") then dms[#dms + 1] = key end end
 	table.sort(dms, function(a, b) return (St.seen[a] or 0) > (St.seen[b] or 0) end)
 	if #dms > 0 then
-		add(nil, L["Whispers"], true)
-		for i = 1, math.min(8, #dms) do add(dms[i], "@ " .. dms[i]:sub(4)) end
+		add("whispers", L["Whispers"], true)
+		local max = self.allWhispers and #dms or math.min(8, #dms)
+		for i = 1, max do add(dms[i], "@ " .. dms[i]:sub(4), nil, cfg().muted[dms[i]]) end
+		if #dms > 8 then add("morewhispers", self.allWhispers and L["Fewer"] or L["+ %d more"]:format(#dms - 8)) end
 	end
-	add(nil, L["Your tabs"], true)
+	add("tabs", L["Your tabs"], true)
 	for i, t in ipairs(ChA.db.tabs) do add("tab:" .. i, t.name) end
 	add("newtab", L["+ New tab"])
 	return out
@@ -300,17 +344,21 @@ function W:RenderSidebar()
 		b:ClearAllPoints()
 		b:SetPoint("TOPLEFT", W.side, "TOPLEFT", 2, -4 - (n - 1) * ROW)
 		b:SetPoint("TOPRIGHT", W.side, "TOPRIGHT", -2, -4 - (n - 1) * ROW)
-		b.key, b.header = e.key, e.header
-		b.text:SetText(e.label)
-		local unread = e.key and St.unread[e.key]
+		b.key, b.header, b.group = e.key, e.header, e.group
+		local unread = e.key and not cfg().muted[e.key] and St.unread[e.key]
 		if e.header then
+			-- a foldable group: "-" open, "+" folded (with its unread total)
+			local folded = e.group and cfg().collapsed[e.group]
+			b.text:SetText(e.group and ((folded and "+ " or "- ") .. e.label) or e.label)
 			S:ApplyFont(b.text, 10)
 			b.text:SetTextColor(unpack(S.colors.muted))
-			b.count:SetText("")
+			b.count:SetText(folded and e.unread > 0 and e.unread or "")
 			b.hl:Hide()
 		else
+			b.text:SetText(e.label)
 			S:ApplyFont(b.text, 12, unread and "OUTLINE" or nil)
 			if e.key == cur then b.text:SetTextColor(unpack(S.colors.accent))
+			elseif e.muted then b.text:SetTextColor(0.45, 0.48, 0.52)
 			elseif unread then b.text:SetTextColor(1, 1, 1)
 			else b.text:SetTextColor(unpack(S.colors.text)) end
 			b.count:SetText(unread and (unread > 99 and "99+" or unread) or "")
@@ -397,16 +445,23 @@ function W:Select(key)
 	self.messages:Clear()
 	for _, m in ipairs(St:List(c.current)) do show(m) end
 	self.messages:ScrollToBottom()
+	if self.NewLines then self:NewLines(0) end
 	aimInput(c.current)
+	if self.UpdateTopic then self:UpdateTopic() end
 	self:RenderSidebar()
 end
 
 function W:OnMessage(m)
 	local cur = cfg().current
-	local inView = cur == "all" or m.room == cur
+	local inView = (cur == "all" and not St.HiddenFromAll(m)) or m.room == cur
 	local n = type(cur) == "string" and tonumber(cur:match("^tab:(%d+)$"))
 	if n then inView = St.Matches(ChA.db.tabs[n], m) end
-	if inView then show(m) end
+	if inView then
+		show(m)
+		-- scrolled up: a quiet "new messages" bar instead of jumping
+		local ok, bottom = pcall(self.messages.AtBottom, self.messages)
+		if self.NewLines and ok and bottom == false then self:NewLines((self.newCount or 0) + 1) end
+	end
 	self:RenderSidebar()
 end
 
@@ -539,7 +594,11 @@ function W:OpenTabEditor(index)
 	local chans = {}
 	if GetChannelList then
 		local list = { GetChannelList() }
-		for i = 1, #list, 3 do if type(list[i + 1]) == "string" then chans[#chans + 1] = list[i + 1] end end
+		local seen = {}
+		for i = 1, #list, 3 do
+			local name = St.BaseName(list[i + 1])
+			if type(name) == "string" and not seen[name] then seen[name] = true chans[#chans + 1] = name end
+		end
 	end
 	for i, cb in ipairs(d.chanChecks) do
 		local ch = chans[i]
@@ -573,24 +632,8 @@ function W:JoinChannel()
 	StaticPopup_Show("CHATOFAZEROTH_JOIN")
 end
 
--- right-click on your tab: change or delete it
-function W:TabMenu(key)
-	local n = tonumber(key:match("^tab:(%d+)$"))
-	local tab = n and ChA.db.tabs[n]
-	if not tab then return end
-	StaticPopupDialogs.CHATOFAZEROTH_TAB = StaticPopupDialogs.CHATOFAZEROTH_TAB or { button1 = L["Change"],
-		button2 = L["Delete"], button3 = CANCEL, timeout = 0, whileDead = true, hideOnEscape = true, preferredIndex = 3 }
-	local p = StaticPopupDialogs.CHATOFAZEROTH_TAB
-	p.text = L["Your tab \"%s\""]:format(tab.name)
-	p.OnAccept = function() W:OpenTabEditor(n) end
-	p.OnCancel = function(_, _, reason)
-		if reason == "clicked" then
-			table.remove(ChA.db.tabs, n)
-			if cfg().current == key then W:Select("all") else W:RenderSidebar() end
-		end
-	end
-	StaticPopup_Show("CHATOFAZEROTH_TAB")
-end
+-- right-click on your tab: the room menu (Menus.lua)
+function W:TabMenu(key) return self:RoomMenu(key) end
 
 function W:OnEnable()
 	self:Build()

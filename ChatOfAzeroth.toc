@@ -1,4 +1,5 @@
 ## Interface: 16001
+## Category: Addons of Azeroth
 ## Title: Chat of Azeroth
 ## Notes: A chat window like Discord or mIRC: channels on the left, whispers as conversations, your own filtered tabs.
 ## Notes-nlNL: Een chatvenster zoals Discord of mIRC: kanalen links, fluistergesprekken apart, je eigen gefilterde tabs.

@@ -167,11 +167,14 @@ function W:Build()
 	-- messages
 	local smf = CreateFrame("ScrollingMessageFrame", nil, f)
 	smf:SetPoint("TOPLEFT", c.sidebar + 8, -HEAD - 4)
-	smf:SetPoint("BOTTOMRIGHT", -8, INPUT + 2)
+	smf:SetPoint("BOTTOMRIGHT", -8, INPUT + 6) -- the last line stays clear of the input box
 	smf:SetFont(S.font, c.fontSize, S.flags)
 	smf:SetShadowColor(0, 0, 0, 1)
 	smf:SetShadowOffset(1, -1)
 	smf:SetJustifyH("LEFT")
+	-- a little air between lines, and long lines wrap indented: no lines on top of each other
+	if smf.SetSpacing then smf:SetSpacing(2) end
+	if smf.SetIndentedWordWrap then smf:SetIndentedWordWrap(true) end
 	smf:SetFading(false)
 	smf:SetMaxLines(500)
 	smf:SetHyperlinksEnabled(true)
